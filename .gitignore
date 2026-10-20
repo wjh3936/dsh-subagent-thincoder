@@ -1,0 +1,9 @@
+# Dependencies — no trailing slash on purpose: a symlinked node_modules is not
+# a directory to the matcher, so `node_modules/` would miss it.
+node_modules
+
+# Local scratch space (diagnostic logs, trial backups)
+.thincoder/tmp/
+
+# OS noise
+.DS_Store

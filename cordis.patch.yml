@@ -1,0 +1,46 @@
+# dsh-subagent-thincoder bundle patch: one mount row for the continuable ThinCoder
+# subagent provider.
+#
+# The plugin registers one subagent provider (`providerName`, default
+# `thincoder`) and two model-facing tools (`toolName`, default
+# `subagent_thincoder`; `sessionToolName`, default
+# `subagent_thincoder_sessions`). A delegation starts one `thincoder acp`
+# child, establishes a session (`session/new`, or `session/resume` when a
+# session was recorded for this dsh session + workspace), prompts it, takes the
+# final answer, and releases the slot with `session/close` before the process
+# is reaped.
+#
+# It injects `tools`, `subagents`, `subprocess`, and `storageDomain`. A profile
+# missing any of them fails this row loudly instead of degrading: a delegation
+# path without the subprocess seam or the session store cannot keep the
+# cross-delegation continuity this plugin exists to provide.
+#
+# `config:` on this row IS the plugin's settings surface. The plugin exports a
+# schemastery `Config`; the host projects it into an editable form under this
+# row's `id`. The identity leaves (`providerName` / `toolName` /
+# `sessionToolName`) are NOT volatile — renaming a provider or a tool changes
+# the registered catalog and needs a remount. Every other leaf is volatile and
+# read per delegation, so a settings write takes effect on the next call
+# without re-registering anything.
+#
+# `permission: allow` is the deployment-side opt-in the plugin's own default
+# (`reject`) keeps safe: a delegating subagent writes files, and `reject` would
+# cancel every one of the child's permission requests. `cwd` stays `''` so the
+# child inherits the delegating session's workspace, which is the value
+# `session/new` requires to equal the child process's own working directory.
+
+- insert:
+    - id: dsh-subagent-thincoder
+      name: dsh-subagent-thincoder
+      config:
+        providerName: thincoder
+        toolName: subagent_thincoder
+        sessionToolName: subagent_thincoder_sessions
+        command: thincoder
+        args:
+          - acp
+        cwd: ''
+        permission: allow
+        env: {}
+        disposeEofGraceMs: 6000
+        disposeGraceMs: 3000

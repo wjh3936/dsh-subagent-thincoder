@@ -1,0 +1,33 @@
+name: test
+
+on:
+  push:
+    branches: [master, main, public]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: node ${{ matrix.node }} · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: [22, 24]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # The plugin declares its host packages as peerDependencies (dsh provides
+      # them at runtime). A CI checkout has no host, so they are installed here
+      # explicitly — that is what makes the suite runnable off a real dsh tree.
+      - name: Install peer dependencies
+        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh-subagent@0.2.1-rc.2 @deepseek-ai/dsh-tools@0.2.1-rc.2 @deepseek-ai/dsh-subprocess@0.2.1-rc.2 @deepseek-ai/dsh-storage-domain@0.2.1-rc.2 @deepseek-ai/schemastery@^3.18.2 @deepseek-ai/cordis@^4.0.2 @agentclientprotocol/sdk@^1.4.0 zod@^4.0.0
+
+      - name: Run tests
+        run: npm test
