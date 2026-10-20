@@ -106,8 +106,10 @@ test('[5] linkKey: a throwing or unreadable normaliser falls back and never thro
   assert.equal(linkKey('p', ws, POSIX, boom), `p\u0000${ws}`)
   assert.doesNotThrow(() => linkKey('p', ws, WIN, boom))
   assert.equal(linkKey('p', ws, WIN, boom), `p\u0000${ws.toLowerCase()}`)
-  const ghost = `/nonexistent-${randomUUID()}`
-  assert.equal(linkKey('p', ghost, POSIX), `p\u0000${ghost}`)
+  // Same host-neutrality rule: build the absent path from this host's tmpdir so
+  // Windows does not fold a leading '/' into '<drive>:\'.
+  const ghost = join(tmpdir(), `nonexistent-${randomUUID()}`)
+  assert.equal(linkKey('p', ghost, POSIX, boom), `p\u0000${ghost}`)
 })
 
 test('[6] the normalisation reaches the key only — never the recorded or child cwd (38)', async (t) => {
