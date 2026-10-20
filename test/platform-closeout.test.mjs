@@ -81,8 +81,15 @@ test('[3] real filesystem case probe: two case forms of one directory (35)', (t)
 })
 
 test('[4] linkKey: a symlink alias and its target make one key (36)', (t) => {
-  const aliasOnly = (path) => (path === '/tmp/ws' ? '/private/tmp/ws' : path)
-  assert.equal(linkKey('p', '/tmp/ws', POSIX, aliasOnly), linkKey('p', '/private/tmp/ws', POSIX, aliasOnly))
+  // Platform-neutral alias stub: the injected normaliser maps one REAL absolute
+  // path onto another. Hard-coding '/tmp/ws' would make this case POSIX-only —
+  // on Windows node:path resolves that string to '<drive>:\\tmp\\ws', so the
+  // stub's exact-match never fires and the assertion compares two distinct paths.
+  const base = tempDir(t)
+  const aliasPath = join(base, 'ws')
+  const targetPath = join(base, 'private', 'ws')
+  const aliasOnly = (path) => (path === aliasPath ? targetPath : path)
+  assert.equal(linkKey('p', aliasPath, POSIX, aliasOnly), linkKey('p', targetPath, POSIX, aliasOnly))
   const dir = tempDir(t)
   const target = join(dir, 'Real')
   mkdirSync(target)
@@ -93,10 +100,12 @@ test('[4] linkKey: a symlink alias and its target make one key (36)', (t) => {
 
 test('[5] linkKey: a throwing or unreadable normaliser falls back and never throws (37)', () => {
   const boom = () => { throw new Error('unreadable') }
-  const ws = resolve('/tmp/ws')
-  assert.equal(linkKey('p', '/tmp/ws', POSIX, boom), `p\u0000${ws}`)
-  assert.doesNotThrow(() => linkKey('p', '/tmp/ws', WIN, boom))
-  assert.equal(linkKey('p', '/tmp/ws', WIN, boom), `p\u0000${ws.toLowerCase()}`)
+  // A real absolute path on THIS host, so the fallback assertion is meaningful
+  // on Windows too (a POSIX literal would resolve against the drive root there).
+  const ws = resolve(join(tmpdir(), 'ws'))
+  assert.equal(linkKey('p', ws, POSIX, boom), `p\u0000${ws}`)
+  assert.doesNotThrow(() => linkKey('p', ws, WIN, boom))
+  assert.equal(linkKey('p', ws, WIN, boom), `p\u0000${ws.toLowerCase()}`)
   const ghost = `/nonexistent-${randomUUID()}`
   assert.equal(linkKey('p', ghost, POSIX), `p\u0000${ghost}`)
 })
@@ -154,6 +163,12 @@ test('[9] linkKey validates before it normalises — an invalid call never reach
   assert.equal(calls, 0)
 })
 
-test('[10] frozen-face guard: /tmp/ws does not exist, so the frozen keys keep their form', () => {
-  assert.equal(existsSync('/tmp/ws'), false)
+test('[10] frozen-face guard: the fixture path does not exist, so frozen keys keep their form (40)', () => {
+  // B1/B2 freeze the key form for a workspace that does NOT resolve on disk
+  // (so canonicalPath falls back to the resolved string). This asserts the
+  // precondition on THIS host rather than hard-coding a POSIX path — on Windows
+  // '/tmp/ws' would silently mean '<drive>:\tmp\ws', a different question.
+  const nonexistent = join(tmpdir(), `b3-absent-${randomUUID()}`)
+  assert.equal(existsSync(nonexistent), false)
+  assert.equal(canonicalPath(nonexistent), nonexistent)
 })
